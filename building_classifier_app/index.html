@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <title>d3 Scatter Plot</title>
+        <script src="http://d3js.org/d3.v3.min.js" charset="utf-8"></script>
+        <!-- Styles for our vis  -->
+        <style>
+        body {
+            font: 15px sans-serif; /* axes font */
+        }
+
+        .axis path,
+        .axis line {
+            fill: none; /* axes color */
+            stroke: #000;
+            shape-rendering: crispEdges;
+        }
+
+        .dot {
+            stroke: none;
+        }
+        button {
+            font-size: 15px;
+        }
+
+        button:focus {
+            font-size: 15px;
+            border: solid red;
+        }
+
+        button:hover {
+            font-size: 15px;
+            background: lightgray
+        }
+
+        .tooltip {
+            position: absolute;
+            font-size: 12px; /* tooltip font */
+            width:  auto;
+            height: auto;
+            pointer-events: none;
+            background-color: white;
+            border: 1px solid #bbbbbb;
+        }
+
+        img {
+            max-height: 300px;
+            max-width: 300px;
+        }
+
+        .myLabel {
+            font-size: 30px;
+        }
+
+         </style>
+    </head>
+    <body>
+        <div id="vis-container"></div>
+        <div class="tabbable">
+            <ul class="nav-tabs">
+                <button class="atab" href="#a_tab" data-toggle="tab">VAE</button>
+                <button class="btab" href="#b_tab" data-toggle="tab">t-SNE 5</button>
+                <button class="ctab" href="#c_tab" data-toggle="tab">t-SNE 30</button>
+                <button class="dtab" href="#d_tab" data-toggle="tab">t-SNE 50</button>
+                <button class="etab" href="#e_tab" data-toggle="tab">t-SNE 100</button>
+            </ul>
+            <div class="tab-content">
+                <div class="tab-pane-active" id="a_tab">
+                    <acontent></acontent>
+                    </div>
+                <div class="tab-pane">
+                    <bcontent></bcontent>
+                </div>
+            </div>
+        </div>
+        <!-- Optionally reference your vis JS file here, or define in a script tag -->
+        <!-- <script type="text/javascript" src="js/my-vis.js"></script> -->
+        <script type="text/javascript" src="http://code.jquery.com/jquery-latest.js"></script>
+        <script src="http://d3js.org/d3.v3.js"></script>
+        <script src="http://netdna.bootstrapcdn.com/twitter-bootstrap/2.2.2/js/bootstrap.min.js"></script>
+        <input type="text" id="txt_url">
+        <button id="btnSubmit">submit</button>
+        <script>
+          var svg = d3.select("body")
+            .append("svg")
+            .attr("id","svg")
+            .attr("width",1000) // width of text box
+            .attr("height",50);
+
+            // Common pattern for defining vis size and margins
+            var margin = { top: 20, right: 20, bottom: 30, left: 40 }, // margin of the svg canvas
+                width  = 600 - margin.left - margin.right, // width of the svg canvas
+                height = 600 - margin.top - margin.bottom; // height of the svg canvas
+
+            // Add the visualization svg canvas to the vis-container <div>
+            var canvas = d3.select("acontent").append("svg")
+                .attr("id","arch_canvas")
+                .attr("width",  width  + margin.left + margin.right)
+                .attr("height", height + margin.top  + margin.bottom)
+              .append("g")
+                .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+            // Define our scales
+            var colorScale = d3.scale.category10();
+
+            // x-axis scale
+            var xScale = d3.scale.linear()
+                .domain([ 0.5,10])
+                .range([0, width]);
+
+            // y-axis scale
+            var yScale = d3.scale.linear()
+                .domain([ 0.5,10 ])
+                .range([height, 0]); // flip order because y-axis origin is upper LEFT
+
+            // Define our axes
+            var xAxis = d3.svg.axis()
+                .scale(xScale)
+                .orient('bottom');
+
+            var yAxis = d3.svg.axis()
+                .scale(yScale)
+                .orient('left');
+
+            // Add x-axis to the canvas
+            canvas.append("g")
+                .attr("class", "x axis")
+                .attr("transform", "translate(0," + height + ")") // move axis to the bottom of the canvas
+                .call(xAxis)
+              .append("text")
+                .attr("class", "label")
+                .attr("x", width) // x-offset from the xAxis, move label all the way to the right
+                .attr("y", -6)    // y-offset from the xAxis, moves text UPWARD!
+                .style("text-anchor", "end") // right-justify text
+                .text("features_x");
+
+            // Add y-axis to the canvas
+            canvas.append("g")
+                .attr("class", "y axis") // .orient('left') took care of axis positioning for us
+                .call(yAxis)
+              .append("text")
+                .attr("class", "label")
+                .attr("transform", "rotate(-90)") // although axis is rotated, text is not
+                .attr("y", 15) // y-offset from yAxis, moves text to the RIGHT because it's rotated, and positive y is DOWN
+                .style("text-anchor", "end")
+                .text("features_y");
+
+          var makeVis = function(data) {
+              // Common pattern for defining vis size and margins
+              var margin = { top: 20, right: 20, bottom: 30, left: 40 }, // margin of the svg canvas
+                  width  = 600 - margin.left - margin.right, // width of the svg canvas
+                  height = 600 - margin.top - margin.bottom; // height of the svg canvas
+
+              // Add the visualization svg canvas to the vis-container <div>
+              var canvas = d3.select("acontent").append("svg")
+                  .attr("id","arch_canvas")
+                  .attr("width",  width  + margin.left + margin.right)
+                  .attr("height", height + margin.top  + margin.bottom)
+                .append("g")
+                  .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+              // Define our scales
+              var colorScale = d3.scale.category10();
+
+              // x-axis scale
+              var xScale = d3.scale.linear()
+                  .domain([ d3.min(data, function(d) { return d.features_x; }) - 1,
+                            d3.max(data, function(d) { return d.features_x; }) + 1 ])
+                  .range([0, width]);
+
+              // y-axis scale
+              var yScale = d3.scale.linear()
+                  .domain([ d3.min(data, function(d) { return d.features_y; }) - 1,
+                            d3.max(data, function(d) { return d.features_y; }) + 1 ])
+                  .range([height, 0]); // flip order because y-axis origin is upper LEFT
+
+              // Define our axes
+              var xAxis = d3.svg.axis()
+                  .scale(xScale)
+                  .orient('bottom');
+
+              var yAxis = d3.svg.axis()
+                  .scale(yScale)
+                  .orient('left');
+
+              // Add x-axis to the canvas
+              canvas.append("g")
+                  .attr("class", "x axis")
+                  .attr("transform", "translate(0," + height + ")") // move axis to the bottom of the canvas
+                  .call(xAxis)
+                .append("text")
+                  .attr("class", "label")
+                  .attr("x", width) // x-offset from the xAxis, move label all the way to the right
+                  .attr("y", -6)    // y-offset from the xAxis, moves text UPWARD!
+                  .style("text-anchor", "end") // right-justify text
+                  .text("features_x");
+
+              // Add y-axis to the canvas
+              canvas.append("g")
+                  .attr("class", "y axis") // .orient('left') took care of axis positioning for us
+                  .call(yAxis)
+                .append("text")
+                  .attr("class", "label")
+                  .attr("transform", "rotate(-90)") // although axis is rotated, text is not
+                  .attr("y", 15) // y-offset from yAxis, moves text to the RIGHT because it's rotated, and positive y is DOWN
+                  .style("text-anchor", "end")
+                  .text("features_y");
+
+              // Add the tooltip container to the vis container
+              // it's invisible and its position/contents are defined during mouseover
+              var tooltip = d3.select("#vis-container")
+                  .append("div")
+                  .attr("class", "tooltip")
+                  .style("opacity", 5)
+                ;
+
+              // tooltip mouseover event handler
+              var tipMouseover = function(d) {
+                  var color = colorScale(d.actual_style);
+                  var html  = d.building + "<br/>" +
+                              "<span style='color:" + color + ";'>" + d.actual_style + "</span><br/>" + "<img src=" + d.img +">";
+
+                if (d3.event.pageY < height / 2) {
+                  tooltip.html(html)
+                      .style("left", (d3.event.pageX + 15) + "px")
+                      .style("top", (d3.event.pageY - 20) + "px")
+                    .transition()
+                      .duration(200) // ms
+                      .style("opacity", 1) // started as 0!
+
+                } else {
+                  tooltip.html(html)
+                      .style("left", (d3.event.pageX + 15) + "px")
+                      .style("top", (d3.event.pageY - 200) + "px")
+                    .transition()
+                      .duration(200) // ms
+                      .style("opacity", 1) // started as 0!
+                }
+              };
+              // tooltip mouseout event handler
+              var tipMouseout = function(d) {
+                  tooltip.transition()
+                      .duration(300) // duration tooltip stays visible in ms
+                      .style("opacity", 0); // don't care about position!
+              };
+
+              // Add data points!
+              canvas.selectAll(".dot")
+                .data(data)
+              .enter().append("circle")
+                .attr("class", "dot")
+                .attr("r", 5.5) // radius size, could map to another data dimension
+                .attr("cx", function(d) { return xScale( d.features_x ); })     // x position
+                .attr("cy", function(d) { return yScale( d.features_y ); })  // y position
+                .style("fill", function(d) { return colorScale(d.actual_style); })
+                .on("mouseover", tipMouseover)
+                .on("mouseout", tipMouseout);
+          };
+
+          $("#btnSubmit").click(function(){
+            var value = $('#txt_url').val();
+              $.ajax({
+                type: 'POST',
+                url: "/score",
+                data: JSON.stringify(value),
+                contentType: 'application/json',
+                success: function(data){
+                    var prediction = data[0]
+                    var encoder_x = +data[1].substr(1).slice(0, -1)
+                    var encoder_y = +data[2].substr(1).slice(0, -1)
+                    var img_url = data[3]
+
+                    $(".myLabel").empty();
+                    var myText =  svg.append("text")
+                     .attr("x", 30)//magic number here
+                     .attr("y", 40)//magic number here
+                     .attr('text-anchor', 'left')
+                     .attr("class", "myLabel")//easy to style with CSS
+                     .text("Architectural Style: "+prediction+" -- New point @ ("+encoder_x.toFixed(2)+', '+encoder_y.toFixed(2)+")");
+
+                    $("acontent").empty();
+                    $("bcontent").empty();
+                      d3.csv('static/d3_df.csv'+'?' + Math.floor(Math.random() * 1000), function loadCallback(error, data) {
+                          data.forEach(function(d) { // convert strings to numbers
+                              d.features_y = +d.vae_y; //tsne 10,30,50,100
+                              d.features_x = +d.vae_x;
+                              d.img = d.img;
+                          });
+                          makeVis(data);
+                  });  
+                }
+              });          
+            });
+ 
+            $.ajaxSetup ({
+                // Disable caching of AJAX responses
+                // Used when debugging
+                cache: false
+            });
+        
+            $(".atab").click(function() {
+              $("acontent").empty();
+              $("bcontent").empty();
+                d3.csv('static/d3_df.csv'+'?' + Math.floor(Math.random() * 1000), function loadCallback(error, data) {
+                    data.forEach(function(d) { // convert strings to numbers
+                        d.features_y = +d.vae_y; //tsne 10,30,50,100
+                        d.features_x = +d.vae_x;
+                        d.img = d.img;
+                    });
+                    makeVis(data);
+                });                
+            })
+
+            $(".btab").click(function() {
+              $("acontent").empty();
+              $("bcontent").empty();
+                d3.csv('static/d3_df.csv'+'?' + Math.floor(Math.random() * 1000), function loadCallback(error, data) {
+                    data.forEach(function(d) { // convert strings to numbers
+                        d.features_y = +d.tsne_y_5; //tsne 10,30,50,100
+                        d.features_x = +d.tsne_x_5;
+                        d.img = d.img;
+                    });
+                    makeVis(data);
+                });
+            })
+
+            $(".ctab").click(function() {
+              $("acontent").empty();
+              $("bcontent").empty();
+                d3.csv('static/d3_df.csv'+'?' + Math.floor(Math.random() * 1000), function loadCallback(error, data) {
+                    data.forEach(function(d) { // convert strings to numbers
+                        d.features_y = +d.tsne_y_30; //tsne 10,30,50,100
+                        d.features_x = +d.tsne_x_30;
+                        d.img = d.img;
+                    });
+                    makeVis(data);
+                });
+            })
+
+            $(".dtab").click(function() {
+              $("acontent").empty();
+              $("bcontent").empty();
+                d3.csv('static/d3_df.csv'+'?' + Math.floor(Math.random() * 1000), function loadCallback(error, data) {
+                    data.forEach(function(d) { // convert strings to numbers
+                        d.features_y = +d.tsne_y_50; //tsne 10,30,50,100
+                        d.features_x = +d.tsne_x_50;
+                        d.img = d.img;
+                    });
+                    makeVis(data);
+                }); 
+            })
+
+            $(".etab").click(function() {
+              $("acontent").empty();
+              $("bcontent").empty();
+                d3.csv('static/d3_df.csv'+'?' + Math.floor(Math.random() * 1000), function loadCallback(error, data) {
+                    data.forEach(function(d) { // convert strings to numbers
+                        d.features_y = +d.tsne_y_100; //tsne 10,30,50,100
+                        d.features_x = +d.tsne_x_100;
+                        d.img = d.img;
+                    });
+                    makeVis(data);
+                });
+            })
+        </script>
+    </body>
+</html>

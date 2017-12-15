@@ -1,1 +1,1 @@
-# neural-network-architectural-styles
+# neural_network_architectural_styles
