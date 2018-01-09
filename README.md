@@ -18,4 +18,4 @@ Flask
 
 ***
 
-#### Blog to come!
+#### Check out my blog [Classification of Architectural Styles Using Neural Networks](https://kennythedatascientist.weebly.com/blog/classification-of-architectural-styles-using-neural-networks)
